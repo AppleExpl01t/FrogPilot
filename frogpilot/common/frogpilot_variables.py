@@ -438,6 +438,7 @@ frogpilot_default_params: list[tuple[str, str | bytes, int, str]] = [
   ("SNGHack", "1", 2, "0"),
   ("SpeedLimitChangedAlert", "0", 0, "0"),
   ("SpeedLimitController", "1", 0, "0"),
+  ("VisionSpeedLimitDetection", "0", 3, "0"),
   ("SpeedLimitFiller", "1", 0, "0"),
   ("SpeedLimitFillerShareData", "1", 0, "0"),
   ("SpeedLimitSources", "0", 3, "0"),
@@ -983,6 +984,7 @@ class FrogPilotVariables:
     toggle.sng_hack = toggle.openpilot_longitudinal and toggle.car_make == "toyota" and not toggle.has_pedal and not has_sng and (params.get_bool("SNGHack") if toggle.tuning_level >= level["SNGHack"] else default.get_bool("SNGHack"))
 
     toggle.speed_limit_controller = toggle.openpilot_longitudinal and (params.get_bool("SpeedLimitController") if toggle.tuning_level >= level["SpeedLimitController"] else default.get_bool("SpeedLimitController"))
+    toggle.vision_speed_limit_detection = (toggle.speed_limit_controller or toggle.show_speed_limits) and (params.get_bool("VisionSpeedLimitDetection") if toggle.tuning_level >= level["VisionSpeedLimitDetection"] else default.get_bool("VisionSpeedLimitDetection"))
     toggle.force_mph_dashboard = toggle.speed_limit_controller and toggle.car_make == "toyota" and (params.get_bool("ForceMPHDashboard") if toggle.tuning_level >= level["ForceMPHDashboard"] else default.get_bool("ForceMPHDashboard"))
     toggle.map_speed_lookahead_higher = params.get_int("SLCLookaheadHigher") if toggle.speed_limit_controller and toggle.tuning_level >= level["SLCLookaheadHigher"] else default.get_int("SLCLookaheadHigher")
     toggle.map_speed_lookahead_lower = params.get_int("SLCLookaheadLower") if toggle.speed_limit_controller and toggle.tuning_level >= level["SLCLookaheadLower"] else default.get_int("SLCLookaheadLower")

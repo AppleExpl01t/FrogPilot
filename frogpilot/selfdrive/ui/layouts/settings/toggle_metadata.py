@@ -1365,6 +1365,13 @@ GAS_BRAKE_TOGGLES = (
     tuning_level=1,
   ),
   ToggleDefinition(
+    title=("Vision Speed Limits (U.S.)"),
+    param="VisionSpeedLimitDetection",
+    description=("<b>Read U.S. 5-80 mph speed-limit signs from the road camera.</b><br><br>Readings can be missed or incorrect; lane applicability and conditional restrictions are not determined."),
+    parent_param="SpeedLimitController",
+    tuning_level=3,
+  ),
+  ToggleDefinition(
     title=("Speed Limit Source Priority"),
     param="SLCPriority",
     button_labels=["SELECT"],

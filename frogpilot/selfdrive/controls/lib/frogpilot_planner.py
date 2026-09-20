@@ -194,6 +194,7 @@ class FrogPilotPlanner:
     frogpilotPlan.roadCurvature = self.road_curvature
 
     frogpilotPlan.slcMapSpeedLimit = self.frogpilot_vcruise.slc.map_speed_limit
+    frogpilotPlan.slcVisionSpeedLimit = self.frogpilot_vcruise.slc.vision_speed_limit
     frogpilotPlan.slcMapboxIsForward = self.frogpilot_vcruise.slc.mapbox_is_forward
     frogpilotPlan.slcMapboxSpeedLimit = self.frogpilot_vcruise.slc.mapbox_speed_limit
     frogpilotPlan.slcMapboxWayId = self.frogpilot_vcruise.slc.mapbox_way_id

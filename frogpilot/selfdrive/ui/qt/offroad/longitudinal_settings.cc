@@ -210,6 +210,7 @@ FrogPilotLongitudinalPanel::FrogPilotLongitudinalPanel(FrogPilotSettingsWindow *
     {"SLCLookaheadLower", tr("Lower Limit Lookahead Time"), tr("<b>How far ahead openpilot looks for a lower speed limit coming up.</b><br><br>This reads from your downloaded map data."), ""},
     {"SetSpeedLimit", tr("Match Speed Limit on Engage"), tr("<b>Engaging openpilot sets your max speed to the current speed limit with your \"Speed Limit Offsets\" added on top.</b><br><br>The offsets do not start at zero, so set them all to 0 if you want the max speed to land on the posted number. This only happens when openpilot has no set speed to go back to, since engaging with the Resume or + button brings back your last set speed instead."), ""},
     {"SLCMapboxFiller", tr("Use Mapbox as Fallback"), tr("<b>Fall back to Mapbox for the speed limit when none of your chosen sources have one.</b><br><br>Needs your Public Mapbox Key and a working internet connection."), ""},
+    {"VisionSpeedLimitDetection", tr("Vision Speed Limits (U.S.)"), tr("<b>Read U.S. speed-limit signs from the road camera.</b><br><br>Supports 5-80 mph signs; metric displays convert those values. Recognition can miss or misread signs and cannot determine lane applicability or conditional restrictions."), ""},
     {"SLCPriority", tr("Speed Limit Source Priority"), tr("<b>Choose which sources openpilot checks for the speed limit and in what order, or have it always use the highest or lowest limit being reported.</b><br><br>Pick up to three sources and openpilot uses the first one that currently has a limit. \"Highest\" and \"Lowest\" ignore the order and take the fastest or slowest limit any source reports, so one wrong map entry can hold you well below the posted limit."), ""},
     {"SLCOffsets", tr("Speed Limit Offsets"), tr("<b>Drive a set amount above or below the posted speed limit.</b><br><br>Each speed range below gets its own offset."), ""},
     {"Offset1", tr("Speed Offset (0–24 mph)"), tr("<b>How far above or below the posted limit openpilot drives between 0 and 24 mph.</b>"), ""},
@@ -524,52 +525,46 @@ FrogPilotLongitudinalPanel::FrogPilotLongitudinalPanel(FrogPilotSettingsWindow *
       longitudinalToggle = overrideSelection;
     } else if (param == "SLCPriority") {
       ButtonControl *slcPriorityButton = new ButtonControl(title, tr("SELECT"), desc);
-      QStringList primaryPriorities = {tr("Dashboard"), tr("Map Data"), tr("Navigation"), tr("Highest"), tr("Lowest")};
-      QStringList otherPriorities = {tr("None"), tr("Dashboard"), tr("Map Data"), tr("Navigation")};
-      QStringList translatedPriorities = {tr("None"), tr("Dashboard"), tr("Map Data"), tr("Navigation"), tr("Highest"), tr("Lowest")};
-      const QStringList canonicalPriorities = {"None", "Dashboard", "Map Data", "Navigation", "Highest", "Lowest"};
+      QStringList primaryPriorities = {tr("Dashboard"), tr("Map Data"), tr("Navigation"), tr("Vision"), tr("Highest"), tr("Lowest")};
+      QStringList otherPriorities = {tr("None"), tr("Dashboard"), tr("Map Data"), tr("Navigation"), tr("Vision")};
+      QStringList translatedPriorities = {tr("None"), tr("Dashboard"), tr("Map Data"), tr("Navigation"), tr("Vision"), tr("Highest"), tr("Lowest")};
+      const QStringList canonicalPriorities = {"None", "Dashboard", "Map Data", "Navigation", "Vision", "Highest", "Lowest"};
       QStringList priorityPrompts = {tr("Select your primary priority"), tr("Select your secondary priority"), tr("Select your tertiary priority")};
 
       QObject::connect(slcPriorityButton, &ButtonControl::clicked, [=]() {
         QStringList selectedPriorities;
+        QStringList newPriorities = {"None", "None", "None"};
 
-        for (int i = 1; i <= 3; ++i) {
-          QStringList availablePriorities = i == 1 ? primaryPriorities : otherPriorities;
-          availablePriorities = availablePriorities.toSet().subtract(selectedPriorities.toSet()).toList();
-
+        for (int i = 0; i < 3; ++i) {
+          QStringList availablePriorities = i == 0 ? primaryPriorities : otherPriorities;
+          for (const QString &selected : selectedPriorities) {
+            availablePriorities.removeAll(selected);
+          }
           if (!parent->hasDashSpeedLimits) {
             availablePriorities.removeAll(tr("Dashboard"));
           }
-          if (availablePriorities.size() == 1 && availablePriorities.contains(tr("None"))) {
-            break;
-          }
 
-          QString selection = MultiOptionDialog::getSelection(priorityPrompts[i - 1], availablePriorities, "", this);
+          QString selection = MultiOptionDialog::getSelection(priorityPrompts[i], availablePriorities, "", this);
           if (selection.isEmpty()) {
-            break;
+            return;
           }
-
-          selectedPriorities.append(selection);
-
           const int selectionIndex = translatedPriorities.indexOf(selection);
-          params.put(QString("SLCPriority%1").arg(i).toStdString(),
-                     (selectionIndex >= 0 ? canonicalPriorities[selectionIndex] : selection).toStdString());
-          if (selection == tr("None")) {
-            for (int j = i + 1; j <= 3; ++j) {
-              params.put(QString("SLCPriority%1").arg(j).toStdString(), std::string("None"));
-            }
-            break;
+          if (selectionIndex < 0) {
+            return;
           }
-
-          if (selection == tr("Lowest") || selection == tr("Highest")) {
+          newPriorities[i] = canonicalPriorities[selectionIndex];
+          selectedPriorities.append(selection);
+          if (selection == tr("None") || selection == tr("Lowest") || selection == tr("Highest")) {
             break;
           }
         }
 
+        // Keep the existing order intact when any selection dialog is cancelled.
+        for (int i = 0; i < 3; ++i) {
+          params.put(QString("SLCPriority%1").arg(i + 1).toStdString(), newPriorities[i].toStdString());
+        }
         selectedPriorities.removeAll(tr("None"));
-        if (!selectedPriorities.isEmpty()) {
-          slcPriorityButton->setValue(selectedPriorities.join(", "));
-        }
+        slcPriorityButton->setValue(selectedPriorities.join(", "));
       });
 
       QStringList selectedPriorities;

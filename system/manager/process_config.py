@@ -58,6 +58,10 @@ def run_frogpilot_telemetry(started, params, CP: car.CarParams, classic_model, t
 def run_new_modeld(started, params, CP: car.CarParams, classic_model, tinygrad_model, frogpilot_toggles) -> bool:
   return started and not (classic_model or tinygrad_model)
 
+def run_speed_limit_vision(started, params, CP: car.CarParams, classic_model, tinygrad_model, frogpilot_toggles) -> bool:
+  return started and frogpilot_toggles.vision_speed_limit_detection
+
+
 def run_speed_limit_filler(started, params, CP: car.CarParams, classic_model, tinygrad_model, frogpilot_toggles) -> bool:
   return frogpilot_toggles.speed_limit_filler
 
@@ -118,6 +122,7 @@ procs = [
   PythonProcess("frogpilot_process", "frogpilot.system.frogpilot_process", always_run),
   PythonProcess("frogpilot_telemetry", "frogpilot.system.loggerd.frogpilot_telemetry", run_frogpilot_telemetry, enabled=not PC),
   NativeProcess("mapd", "frogpilot/selfdrive/navd", ["env", "USE_MSGQ_PREFIX=true", "./mapd"], always_run),
+  PythonProcess("speed_limit_vision", "frogpilot.system.speed_limit_vision", run_speed_limit_vision),
   PythonProcess("speed_limit_filler", "frogpilot.selfdrive.navd.speed_limit_filler", run_speed_limit_filler),
   PythonProcess("the_pond", "frogpilot.system.the_pond.the_pond", always_run),
   PythonProcess("tinygrad_modeld", "frogpilot.selfdrive.modeld.tinygrad.tinygrad_modeld", run_tinygrad_modeld),

@@ -127,6 +127,7 @@ struct FrogPilotCarState @0xda96579883444c35 {
   pedalInterceptorNoBrake @14 :Bool;
   sportGear @15 :Bool;
   trafficModeEnabled @16 :Bool;
+  drivingGear @17 :Bool;
 
   struct ButtonEvent {
     enum Type {
@@ -222,6 +223,7 @@ struct FrogPilotPlan @0xa1680744031fdb2d {
   vCruise @38 :Float32;
   weatherDaytime @39 :Bool;
   weatherId @40 :Int16;
+  slcVisionSpeedLimit @41 :Float32;
 }
 
 struct FrogPilotRadarState @0xcb9fd56c7057593a {

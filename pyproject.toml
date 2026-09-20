@@ -101,6 +101,7 @@ crcmod = "*"       # cars + qcomgpsd
 smbus2 = "*"  # configuring amp
 
 # core
+opencv-python-headless = "*"
 cffi = "*"
 scons = "*"
 pycapnp = "*"
@@ -160,7 +161,6 @@ mpld3 = "*"
 mypy = "*"
 myst-parser = "*"
 natsort = "*"
-opencv-python-headless = "*"
 parameterized = "^0.8"
 pprofile = "*"
 polyline = "*"

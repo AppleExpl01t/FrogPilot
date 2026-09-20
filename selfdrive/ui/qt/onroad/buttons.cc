@@ -1,3 +1,4 @@
+#include <QPainterPath>
 #include "selfdrive/ui/qt/onroad/buttons.h"
 
 #include <QFileInfo>

@@ -2,6 +2,7 @@
 # PFEIFER - SLC - Modified by FrogAi for FrogPilot
 import json
 import requests
+import time
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -11,6 +12,7 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.navd.helpers import maxspeed_to_ms
 
 from openpilot.frogpilot.common.frogpilot_variables import params, params_memory
+from openpilot.frogpilot.common.vision_speed_limit import VISION_SPEED_LIMIT_PARAM, read_vision_speed_limit
 
 MAPBOX_MONTHLY_REQUEST_LIMIT = 100_000
 MAPBOX_REQUEST_INTERVAL = 5
@@ -55,6 +57,8 @@ class SpeedLimitController:
     self.speed_limit_changed_timer = 0
     self.target = 0
     self.unconfirmed_speed_limit = 0
+    self.vision_speed_limit = 0
+    self.confirmation_source = "None"
 
     self.mapbox_future = None
     self.mapbox_position = None
@@ -88,6 +92,8 @@ class SpeedLimitController:
     self.mapbox_position = None
 
   def reset(self):
+    self.vision_speed_limit = 0
+    self.confirmation_source = "None"
     self.denied_target = 0
     self.map_speed_limit = 0
     self.next_speed_limit = 0
@@ -116,6 +122,7 @@ class SpeedLimitController:
     return next((getattr(self.frogpilot_toggles, offset) for upper_bound, offset in offset_map if 0 < displayed_speed_limit < upper_bound), 0)
 
   def handle_limit_change(self, desired_source, desired_target, sm):
+    self.confirmation_source = desired_source
     if desired_source == "None" or self.target == 0:
       confirmation_required = False
     elif desired_target < self.target:
@@ -182,10 +189,25 @@ class SpeedLimitController:
 
     self.update_map_speed_limit(map_match, v_ego)
 
+    self.vision_speed_limit = 0
+    if self.frogpilot_toggles.vision_speed_limit_detection:
+      self.vision_speed_limit = read_vision_speed_limit(params_memory.get(VISION_SPEED_LIMIT_PARAM), time.monotonic())
+    if not self.vision_speed_limit and (self.source == "Vision" or self.previous_source == "Vision"):
+      # Expired/disabled vision must not survive through confirmation or fallback.
+      self.target = 0
+      self.overridden_speed = 0
+      self.unconfirmed_speed_limit = 0
+      self.denied_target = 0
+      self.speed_limit_changed_timer = 0
+      self.source = "None"
+      self.previous_source = "None"
+      self.previous_target = 0
+
     limits = {
       "Dashboard": sm["frogpilotCarState"].dashboardSpeedLimit,
       "Map Data": self.map_speed_limit,
       "Navigation": sm["frogpilotNavigation"].navigationSpeedLimit,
+      "Vision": self.vision_speed_limit,
     }
     limits = {source: limit for source, limit in limits.items() if limit >= 1}
 
@@ -203,10 +225,18 @@ class SpeedLimitController:
 
     desired_target = limits.get(desired_source, 0)
 
+    if self.confirmation_source == "Vision" and desired_source != "Vision":
+      # A pending/denied vision reading must not outlive its source or selection.
+      self.confirmation_source = "None"
+      self.denied_target = 0
+      self.unconfirmed_speed_limit = 0
+      self.speed_limit_changed_timer = 0
+      params_memory.remove("SpeedLimitAccepted")
+
     self.update_mapbox_speed_limit(gps_position, map_match, now, time_validated, v_ego, desired_target)
 
     if desired_target == 0:
-      previous_limit_available = self.previous_target > 0 and self.denied_target != self.previous_target
+      previous_limit_available = self.previous_target > 0 and self.denied_target != self.previous_target and self.previous_source != "Vision"
 
       if self.mapbox_speed_limit >= 1:
         desired_source, desired_target = "Mapbox", self.mapbox_speed_limit
@@ -234,6 +264,7 @@ class SpeedLimitController:
       self.source = "None"
 
     if abs(desired_target - self.target) < 1:
+      self.confirmation_source = "None"
       self.denied_target = 0
       self.unconfirmed_speed_limit = 0
 
@@ -255,7 +286,8 @@ class SpeedLimitController:
       if self.target != self.previous_target:
         self.previous_target = self.target
 
-        params.put_float_nonblocking("PreviousSpeedLimit", self.target)
+        if self.source != "Vision":
+          params.put_float_nonblocking("PreviousSpeedLimit", self.target)
 
   def update_mapbox_speed_limit(self, gps_position, map_match, now, time_validated, v_ego, desired_target):
     mapbox_enabled = self.frogpilot_toggles.slc_mapbox_filler or self.frogpilot_toggles.speed_limit_filler
